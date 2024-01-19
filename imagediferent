@@ -1,0 +1,165 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+
+public class ImageDifferenceGame extends JFrame {
+
+    private JLabel imageLabel1;
+    private JLabel imageLabel2;
+    private JLabel resultLabel;
+
+    private BufferedImage image1;
+    private BufferedImage image2;
+
+    private boolean isImage1Loaded = false;
+    private boolean isImage2Loaded = false;
+
+    public ImageDifferenceGame() {
+        setTitle("Image Difference Game");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        JPanel imagePanel = new JPanel(new GridLayout(1, 3));
+
+        imageLabel1 = new JLabel();
+        imageLabel2 = new JLabel();
+        resultLabel = new JLabel("Compare images to find differences.");
+        resultLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        imagePanel.add(imageLabel1);
+        imagePanel.add(imageLabel2);
+        imagePanel.add(resultLabel);
+
+        JButton loadImage1Button = new JButton("Load Image 1");
+        loadImage1Button.addActionListener(e -> loadImageAndDisplay(imageLabel1, "image1"));
+
+        JButton loadImage2Button = new JButton("Load Image 2");
+        loadImage2Button.addActionListener(e -> loadImageAndDisplay(imageLabel2, "image2"));
+
+        JButton compareButton = new JButton("Compare Images");
+        compareButton.addActionListener(e -> compareImages());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(loadImage1Button);
+        buttonPanel.add(loadImage2Button);
+        buttonPanel.add(compareButton);
+
+        add(imagePanel, BorderLayout.CENTER);
+        add(buttonPanel, BorderLayout.SOUTH);
+        pack();
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+    private void loadImageAndDisplay(JLabel label, String imageVariable) {
+        JFileChooser fileChooser = new JFileChooser();
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            try {
+                File selectedFile = fileChooser.getSelectedFile();
+                BufferedImage loadedImage = ImageIO.read(selectedFile);
+                if (imageVariable.equals("image1")) {
+                    image1 = loadedImage;
+                    isImage1Loaded = true;
+                } else if (imageVariable.equals("image2")) {
+                    image2 = loadedImage;
+                    isImage2Loaded = true;
+                }
+                displayImage(loadedImage, label);
+                resetResultLabel();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error loading image.");
+            }
+        }
+    }
+
+    private void displayImage(BufferedImage image, JLabel label) {
+        if (image != null) {
+            ImageIcon icon = new ImageIcon(image.getScaledInstance(300, 300, Image.SCALE_SMOOTH));
+            label.setIcon(icon);
+            label.revalidate();
+            label.repaint();
+        }
+    }
+
+    private void resetResultLabel() {
+        resultLabel.setText("Compare images to find differences.");
+    }
+
+    private void compareImages() {
+        if (isImage1Loaded && isImage2Loaded) {
+            if (image1.getWidth() == image2.getWidth() && image1.getHeight() == image2.getHeight()) {
+                BufferedImage diffImage = getDifferenceImage(image1, image2);
+                if (diffImage != null) {
+                    displayImage(diffImage, resultLabel);
+                } else {
+                    resultLabel.setText("Images are identical.");
+                }
+            } else {
+                resultLabel.setText("Images are of different sizes.");
+            }
+        } else {
+            resultLabel.setText("Please load both images first.");
+        }
+    }
+
+    private BufferedImage getDifferenceImage(BufferedImage img1, BufferedImage img2) {
+        BufferedImage diffImage = new BufferedImage(img1.getWidth(), img1.getHeight(), BufferedImage.TYPE_INT_ARGB);
+
+        int width = img1.getWidth();
+        int height = img1.getHeight();
+
+        boolean imagesAreEqual = true;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb1 = img1.getRGB(x, y);
+                int rgb2 = img2.getRGB(x, y);
+
+                if (rgb1 != rgb2) {
+                    imagesAreEqual = false;
+
+                    int diffRGB = highlightDifferences(rgb1, rgb2);
+
+                    diffImage.setRGB(x, y, diffRGB);
+                } else {
+                    diffImage.setRGB(x, y, rgb1);
+                }
+            }
+        }
+
+        if (imagesAreEqual) {
+            return null; // Return null if images are identical
+        }
+
+        return diffImage;
+    }
+
+    private int highlightDifferences(int rgb1, int rgb2) {
+        int r1 = (rgb1 >> 16) & 0xFF;
+        int g1 = (rgb1 >> 8) & 0xFF;
+        int b1 = rgb1 & 0xFF;
+
+        int r2 = (rgb2 >> 16) & 0xFF;
+        int g2 = (rgb2 >> 8) & 0xFF;
+        int b2 = rgb2 & 0xFF;
+
+        int diffR = Math.abs(r1 - r2);
+        int diffG = Math.abs(g1 - g2);
+        int diffB = Math.abs(b1 - b2);
+
+        // Increase brightness to highlight differences
+        int highlight = (diffR + diffG + diffB) / 3;
+        return (255 << 24) | (highlight << 16) | (highlight << 8) | highlight;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(ImageDifferenceGame::new);
+    }
+}
